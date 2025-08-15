@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect, useRef } from "react"
+import { useTheme } from "next-themes"
 import {
   Bot,
   Server,
@@ -32,11 +33,17 @@ export default function DiscordBotDashboard() {
   const [currentTime, setCurrentTime] = useState(142)
   const [duration, setDuration] = useState(245)
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
-  const [darkMode, setDarkMode] = useState(false)
   const [hoveredItem, setHoveredItem] = useState<number | null>(null)
   const [tooltipPosition, setTooltipPosition] = useState({ top: 0, left: 0 })
 
+  const { theme, setTheme } = useTheme()
+  const [mounted, setMounted] = useState(false)
+
   const navItemRefs = useRef<(HTMLDivElement | null)[]>([])
+
+  useEffect(() => {
+    setMounted(true)
+  }, [])
 
   // Simulate real-time updates
   useEffect(() => {
@@ -80,7 +87,7 @@ export default function DiscordBotDashboard() {
   }
 
   const toggleTheme = () => {
-    setDarkMode(!darkMode)
+    setTheme(theme === "dark" ? "light" : "dark")
   }
 
   const handleMouseEnter = (index: number) => {
@@ -99,8 +106,12 @@ export default function DiscordBotDashboard() {
     setHoveredItem(null)
   }
 
+  if (!mounted) {
+    return null
+  }
+
   return (
-    <div className={`min-h-screen transition-colors duration-300 ${darkMode ? "dark" : ""}`}>
+    <div className="min-h-screen transition-colors duration-300">
       <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800 relative overflow-hidden">
         {/* Background Effects */}
         <div className="absolute top-0 right-0 w-96 h-96 bg-slate-200/30 dark:bg-slate-700/20 rounded-full blur-3xl"></div>
@@ -109,12 +120,11 @@ export default function DiscordBotDashboard() {
         {/* Global Tooltip Portal */}
         {sidebarCollapsed && hoveredItem !== null && (
           <div
-            className="fixed bg-slate-900 dark:bg-slate-800 text-white px-3 py-2 rounded-lg text-sm shadow-xl border border-slate-700 dark:border-slate-600 transition-all duration-200 pointer-events-none whitespace-nowrap"
+            className="fixed bg-slate-900 dark:bg-slate-800 text-white px-3 py-2 rounded-lg text-sm shadow-xl border border-slate-700 dark:border-slate-600 transition-all duration-200 pointer-events-none whitespace-nowrap z-50"
             style={{
               top: `${tooltipPosition.top}px`,
               left: `${tooltipPosition.left}px`,
               transform: "translateY(-50%)",
-              zIndex: 99999,
             }}
           >
             {navigationItems[hoveredItem].label}
@@ -128,7 +138,7 @@ export default function DiscordBotDashboard() {
           <div
             className={`${
               sidebarCollapsed ? "w-16" : "w-64"
-            } backdrop-blur-xl bg-white/60 dark:bg-slate-800/60 border-r border-slate-200/50 dark:border-slate-700/50 flex flex-col transition-all duration-500 ease-in-out flex-shrink-0 relative z-50`}
+            } backdrop-blur-xl bg-white/60 dark:bg-slate-800/60 border-r border-slate-200/50 dark:border-slate-700/50 flex flex-col transition-all duration-500 ease-in-out flex-shrink-0 relative z-40`}
           >
             {/* Sidebar Content Container */}
             <div
@@ -264,7 +274,7 @@ export default function DiscordBotDashboard() {
                     onClick={toggleTheme}
                     className="text-slate-600 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 hover:bg-white/50 dark:hover:bg-slate-700/50 transition-all duration-300 transform hover:scale-105"
                   >
-                    {darkMode ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
+                    {theme === "dark" ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
                   </Button>
                 </div>
 
