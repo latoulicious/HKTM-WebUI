@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import {
   Bot,
   Server,
@@ -33,6 +33,10 @@ export default function DiscordBotDashboard() {
   const [duration, setDuration] = useState(245)
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
   const [darkMode, setDarkMode] = useState(false)
+  const [hoveredItem, setHoveredItem] = useState<number | null>(null)
+  const [tooltipPosition, setTooltipPosition] = useState({ top: 0, left: 0 })
+
+  const navItemRefs = useRef<(HTMLDivElement | null)[]>([])
 
   // Simulate real-time updates
   useEffect(() => {
@@ -64,12 +68,35 @@ export default function DiscordBotDashboard() {
     { title: "Electric Pulse", artist: "Synth Master", duration: "4:01" },
   ]
 
+  const navigationItems = [
+    { icon: Activity, label: "Dashboard", active: true },
+    { icon: Server, label: "Servers" },
+    { icon: MessageSquare, label: "Commands" },
+    { icon: Settings, label: "Settings" },
+  ]
+
   const toggleSidebar = () => {
     setSidebarCollapsed(!sidebarCollapsed)
   }
 
   const toggleTheme = () => {
     setDarkMode(!darkMode)
+  }
+
+  const handleMouseEnter = (index: number) => {
+    if (sidebarCollapsed && navItemRefs.current[index]) {
+      const element = navItemRefs.current[index]
+      const rect = element!.getBoundingClientRect()
+      setTooltipPosition({
+        top: rect.top + rect.height / 2,
+        left: rect.right + 12,
+      })
+      setHoveredItem(index)
+    }
+  }
+
+  const handleMouseLeave = () => {
+    setHoveredItem(null)
   }
 
   return (
@@ -79,34 +106,51 @@ export default function DiscordBotDashboard() {
         <div className="absolute top-0 right-0 w-96 h-96 bg-slate-200/30 dark:bg-slate-700/20 rounded-full blur-3xl"></div>
         <div className="absolute bottom-0 left-0 w-96 h-96 bg-slate-300/20 dark:bg-slate-600/20 rounded-full blur-3xl"></div>
 
-        <div className="relative z-10 flex h-screen">
+        {/* Global Tooltip Portal */}
+        {sidebarCollapsed && hoveredItem !== null && (
+          <div
+            className="fixed bg-slate-900 dark:bg-slate-800 text-white px-3 py-2 rounded-lg text-sm shadow-xl border border-slate-700 dark:border-slate-600 transition-all duration-200 pointer-events-none whitespace-nowrap"
+            style={{
+              top: `${tooltipPosition.top}px`,
+              left: `${tooltipPosition.left}px`,
+              transform: "translateY(-50%)",
+              zIndex: 99999,
+            }}
+          >
+            {navigationItems[hoveredItem].label}
+            {/* Tooltip arrow */}
+            <div className="absolute right-full top-1/2 transform -translate-y-1/2 border-4 border-transparent border-r-slate-900 dark:border-r-slate-800"></div>
+          </div>
+        )}
+
+        <div className="relative flex h-screen">
           {/* Sidebar */}
           <div
             className={`${
               sidebarCollapsed ? "w-16" : "w-64"
-            } backdrop-blur-xl bg-white/60 dark:bg-slate-800/60 border-r border-slate-200/50 dark:border-slate-700/50 flex flex-col transition-all duration-300 ease-in-out flex-shrink-0`}
+            } backdrop-blur-xl bg-white/60 dark:bg-slate-800/60 border-r border-slate-200/50 dark:border-slate-700/50 flex flex-col transition-all duration-500 ease-in-out flex-shrink-0 relative z-50`}
           >
             {/* Sidebar Content Container */}
             <div
-              className={`flex flex-col h-full ${sidebarCollapsed ? "px-2 py-4" : "p-4"} transition-all duration-300`}
+              className={`flex flex-col h-full ${sidebarCollapsed ? "px-2 py-4" : "p-4"} transition-all duration-500 ease-in-out`}
             >
-              {/* Bot Info */}
+              {/* Bot Info - Clean without toggle */}
               <div
-                className={`flex items-center mb-8 transition-all duration-300 ${
+                className={`flex items-center mb-8 transition-all duration-500 ease-in-out ${
                   sidebarCollapsed ? "justify-center flex-col gap-1" : "gap-3"
                 }`}
               >
-                <div className="w-10 h-10 rounded-xl bg-slate-800 dark:bg-slate-700 flex items-center justify-center flex-shrink-0">
+                <div className="w-10 h-10 rounded-xl bg-slate-800 dark:bg-slate-700 flex items-center justify-center flex-shrink-0 transition-all duration-300">
                   <Bot className="w-6 h-6 text-white" />
                 </div>
                 <div
-                  className={`transition-all duration-300 overflow-hidden ${
+                  className={`transition-all duration-500 ease-in-out overflow-hidden ${
                     sidebarCollapsed ? "w-0 h-0 opacity-0" : "w-auto opacity-100"
                   }`}
                 >
                   <h1 className="text-slate-800 dark:text-slate-200 font-bold text-lg whitespace-nowrap">BotMaster</h1>
                   <div className="flex items-center gap-2">
-                    <div className={`w-2 h-2 rounded-full ${statusColor[botStatus]}`}></div>
+                    <div className={`w-2 h-2 rounded-full ${statusColor[botStatus]} transition-all duration-300`}></div>
                     <span className="text-slate-600 dark:text-slate-400 text-sm capitalize whitespace-nowrap">
                       {botStatus}
                     </span>
@@ -115,54 +159,71 @@ export default function DiscordBotDashboard() {
               </div>
 
               {/* Navigation */}
-              <nav className={`space-y-2 flex-1 ${sidebarCollapsed ? "px-0" : ""}`}>
-                {[
-                  { icon: Activity, label: "Dashboard", active: true },
-                  { icon: Server, label: "Servers" },
-                  { icon: MessageSquare, label: "Commands" },
-                  { icon: Settings, label: "Settings" },
-                ].map((item, index) => (
-                  <div key={index} className="relative group">
+              <nav className={`space-y-2 flex-1 ${sidebarCollapsed ? "px-0" : ""} transition-all duration-300`}>
+                {navigationItems.map((item, index) => (
+                  <div
+                    key={index}
+                    className="relative"
+                    ref={(el) => (navItemRefs.current[index] = el)}
+                    onMouseEnter={() => handleMouseEnter(index)}
+                    onMouseLeave={handleMouseLeave}
+                  >
                     <button
-                      className={`w-full flex items-center rounded-xl transition-all duration-200 ${
+                      className={`w-full flex items-center rounded-xl transition-all duration-300 ease-in-out ${
                         sidebarCollapsed ? "justify-center p-2 h-10" : "gap-3 px-3 py-3"
                       } ${
                         item.active
-                          ? "bg-slate-800 dark:bg-slate-700 text-white"
+                          ? "bg-slate-800 dark:bg-slate-700 text-white shadow-lg"
                           : "text-slate-600 dark:text-slate-400 hover:bg-white/50 dark:hover:bg-slate-700/50 hover:text-slate-800 dark:hover:text-slate-200"
                       }`}
                     >
-                      <item.icon className="w-5 h-5 flex-shrink-0" />
+                      <item.icon className="w-5 h-5 flex-shrink-0 transition-all duration-300" />
                       <span
-                        className={`transition-all duration-300 overflow-hidden whitespace-nowrap ${
+                        className={`transition-all duration-500 ease-in-out overflow-hidden whitespace-nowrap ${
                           sidebarCollapsed ? "w-0 opacity-0" : "w-auto opacity-100"
                         }`}
                       >
                         {item.label}
                       </span>
                     </button>
-                    {/* Tooltip for collapsed state */}
-                    {sidebarCollapsed && (
-                      <div className="absolute left-full ml-3 top-1/2 transform -translate-y-1/2 bg-slate-900 dark:bg-slate-800 text-white px-3 py-2 rounded-lg text-sm opacity-0 group-hover:opacity-100 transition-all duration-200 pointer-events-none whitespace-nowrap z-[100] shadow-lg border border-slate-700 dark:border-slate-600">
-                        {item.label}
-                        {/* Tooltip arrow */}
-                        <div className="absolute right-full top-1/2 transform -translate-y-1/2 border-4 border-transparent border-r-slate-900 dark:border-r-slate-800"></div>
-                      </div>
-                    )}
                   </div>
                 ))}
               </nav>
 
+              {/* Sidebar Toggle Button - Bottom Position with Hamburger Icon Only */}
+              <div
+                className={`border-t border-slate-200/50 dark:border-slate-700/50 pt-4 mb-4 transition-all duration-500 ease-in-out`}
+              >
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={toggleSidebar}
+                  className={`w-full text-slate-600 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 hover:bg-white/50 dark:hover:bg-slate-700/50 transition-all duration-300 ease-in-out transform hover:scale-105 ${
+                    sidebarCollapsed ? "justify-center p-2" : "justify-center px-3 py-2"
+                  }`}
+                  title={sidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+                >
+                  <div className={`flex items-center gap-2 transition-all duration-300 ${sidebarCollapsed ? "" : ""}`}>
+                    <Menu className="w-4 h-4 flex-shrink-0 transition-all duration-300" />
+                    <span
+                      className={`transition-all duration-500 ease-in-out overflow-hidden whitespace-nowrap text-sm ${
+                        sidebarCollapsed ? "w-0 opacity-0" : "w-auto opacity-100"
+                      }`}
+                    >
+                      Toggle Menu
+                    </span>
+                  </div>
+                </Button>
+              </div>
+
               {/* User Section */}
               <div
-                className={`border-t border-slate-200/50 dark:border-slate-700/50 pt-4 mt-4 transition-all duration-300 ${
-                  sidebarCollapsed
-                    ? "opacity-0 pointer-events-none h-0 overflow-hidden pt-0 mt-0 border-t-0"
-                    : "opacity-100"
+                className={`border-t border-slate-200/50 dark:border-slate-700/50 pt-4 transition-all duration-500 ease-in-out ${
+                  sidebarCollapsed ? "opacity-0 pointer-events-none h-0 overflow-hidden pt-0 border-t-0" : "opacity-100"
                 }`}
               >
-                <div className="flex items-center gap-3 mb-3">
-                  <div className="w-8 h-8 rounded-full bg-slate-300 dark:bg-slate-600 flex items-center justify-center flex-shrink-0">
+                <div className="flex items-center gap-3 mb-3 transition-all duration-300">
+                  <div className="w-8 h-8 rounded-full bg-slate-300 dark:bg-slate-600 flex items-center justify-center flex-shrink-0 transition-all duration-300">
                     <span className="text-slate-700 dark:text-slate-300 text-sm font-medium">JD</span>
                   </div>
                   <div className="flex-1 min-w-0">
@@ -177,7 +238,7 @@ export default function DiscordBotDashboard() {
                 <Button
                   variant="ghost"
                   size="sm"
-                  className="w-full text-slate-600 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 hover:bg-white/50 dark:hover:bg-slate-700/50"
+                  className="w-full text-slate-600 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 hover:bg-white/50 dark:hover:bg-slate-700/50 transition-all duration-300"
                 >
                   Logout
                 </Button>
@@ -186,32 +247,22 @@ export default function DiscordBotDashboard() {
           </div>
 
           {/* Main Content */}
-          <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
+          <div className="flex-1 flex flex-col min-w-0 overflow-hidden relative z-10 transition-all duration-500 ease-in-out">
             <div className="p-8 overflow-auto flex-1">
               <div className="max-w-7xl mx-auto">
                 {/* Header */}
                 <div className="flex items-center justify-between mb-8">
-                  <div className="flex items-center gap-4">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={toggleSidebar}
-                      className="text-slate-600 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 hover:bg-white/50 dark:hover:bg-slate-700/50"
-                    >
-                      <Menu className="w-5 h-5" />
-                    </Button>
-                    <div>
-                      <h2 className="text-3xl font-bold text-slate-800 dark:text-slate-200 mb-2">Dashboard</h2>
-                      <p className="text-slate-600 dark:text-slate-400">
-                        Monitor your Discord bot's performance and activity
-                      </p>
-                    </div>
+                  <div className="transition-all duration-300">
+                    <h2 className="text-3xl font-bold text-slate-800 dark:text-slate-200 mb-2">Dashboard</h2>
+                    <p className="text-slate-600 dark:text-slate-400">
+                      Monitor your Discord bot's performance and activity
+                    </p>
                   </div>
                   <Button
                     variant="ghost"
                     size="sm"
                     onClick={toggleTheme}
-                    className="text-slate-600 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 hover:bg-white/50 dark:hover:bg-slate-700/50"
+                    className="text-slate-600 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 hover:bg-white/50 dark:hover:bg-slate-700/50 transition-all duration-300 transform hover:scale-105"
                   >
                     {darkMode ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
                   </Button>
@@ -227,7 +278,7 @@ export default function DiscordBotDashboard() {
                   ].map((stat, index) => (
                     <Card
                       key={index}
-                      className="backdrop-blur-xl bg-white/60 dark:bg-slate-800/60 border-slate-200/50 dark:border-slate-700/50"
+                      className="backdrop-blur-xl bg-white/60 dark:bg-slate-800/60 border-slate-200/50 dark:border-slate-700/50 transition-all duration-300 hover:shadow-lg hover:scale-105"
                     >
                       <CardContent className="p-6">
                         <div className="flex items-center justify-between">
@@ -235,7 +286,7 @@ export default function DiscordBotDashboard() {
                             <p className="text-slate-600 dark:text-slate-400 text-sm font-medium">{stat.title}</p>
                             <p className="text-2xl font-bold text-slate-800 dark:text-slate-200 mt-1">{stat.value}</p>
                           </div>
-                          <div className="w-12 h-12 rounded-xl bg-slate-800 dark:bg-slate-700 flex items-center justify-center">
+                          <div className="w-12 h-12 rounded-xl bg-slate-800 dark:bg-slate-700 flex items-center justify-center transition-all duration-300">
                             <stat.icon className="w-6 h-6 text-white" />
                           </div>
                         </div>
@@ -245,7 +296,7 @@ export default function DiscordBotDashboard() {
                 </div>
 
                 {/* Search Bar */}
-                <Card className="mb-8 backdrop-blur-xl bg-white/60 dark:bg-slate-800/60 border-slate-200/50 dark:border-slate-700/50">
+                <Card className="mb-8 backdrop-blur-xl bg-white/60 dark:bg-slate-800/60 border-slate-200/50 dark:border-slate-700/50 transition-all duration-300 hover:shadow-lg">
                   <CardHeader>
                     <CardTitle className="flex items-center gap-2 text-slate-800 dark:text-slate-200">
                       <Search className="w-5 h-5" />
@@ -257,11 +308,11 @@ export default function DiscordBotDashboard() {
                       <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-slate-400" />
                       <Input
                         placeholder="Search for songs, artists, or playlists..."
-                        className="pl-10 bg-white/50 dark:bg-slate-700/50 border-slate-200/50 dark:border-slate-600/50 text-slate-800 dark:text-slate-200 placeholder:text-slate-500 dark:placeholder:text-slate-400"
+                        className="pl-10 bg-white/50 dark:bg-slate-700/50 border-slate-200/50 dark:border-slate-600/50 text-slate-800 dark:text-slate-200 placeholder:text-slate-500 dark:placeholder:text-slate-400 transition-all duration-300 focus:scale-105"
                       />
                     </div>
 
-                    <Button className="w-full bg-slate-800 dark:bg-slate-700 hover:bg-slate-700 dark:hover:bg-slate-600 text-white">
+                    <Button className="w-full bg-slate-800 dark:bg-slate-700 hover:bg-slate-700 dark:hover:bg-slate-600 text-white transition-all duration-300 transform hover:scale-105">
                       <Plus className="w-4 h-4 mr-2" />
                       Add to Queue
                     </Button>
@@ -271,7 +322,7 @@ export default function DiscordBotDashboard() {
                 {/* Now Playing and Queue */}
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
                   {/* Now Playing */}
-                  <Card className="backdrop-blur-xl bg-white/60 dark:bg-slate-800/60 border-slate-200/50 dark:border-slate-700/50">
+                  <Card className="backdrop-blur-xl bg-white/60 dark:bg-slate-800/60 border-slate-200/50 dark:border-slate-700/50 transition-all duration-300 hover:shadow-lg">
                     <CardHeader>
                       <CardTitle className="flex items-center gap-2 text-slate-800 dark:text-slate-200">
                         <Music className="w-5 h-5" />
@@ -280,7 +331,7 @@ export default function DiscordBotDashboard() {
                     </CardHeader>
                     <CardContent className="space-y-4">
                       <div className="text-center">
-                        <div className="w-40 h-40 mx-auto bg-gradient-to-br from-slate-300 to-slate-400 dark:from-slate-600 dark:to-slate-700 rounded-xl mb-4 flex items-center justify-center shadow-lg relative overflow-hidden">
+                        <div className="w-40 h-40 mx-auto bg-gradient-to-br from-slate-300 to-slate-400 dark:from-slate-600 dark:to-slate-700 rounded-xl mb-4 flex items-center justify-center shadow-lg relative overflow-hidden transition-all duration-300 hover:scale-105">
                           <div className="absolute inset-0 bg-gradient-to-br from-slate-200/50 dark:from-slate-500/50 to-transparent"></div>
                           <Music className="w-16 h-16 text-slate-600 dark:text-slate-300 relative z-10" />
                           <div className="absolute bottom-2 right-2 w-3 h-3 bg-slate-800 dark:bg-slate-600 rounded-full flex items-center justify-center">
@@ -303,13 +354,13 @@ export default function DiscordBotDashboard() {
                         <Button
                           size="sm"
                           variant="ghost"
-                          className="text-slate-600 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200"
+                          className="text-slate-600 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 transition-all duration-300 transform hover:scale-110"
                         >
                           <SkipBack className="w-4 h-4" />
                         </Button>
                         <Button
                           size="sm"
-                          className="bg-slate-800 dark:bg-slate-700 hover:bg-slate-700 dark:hover:bg-slate-600 text-white"
+                          className="bg-slate-800 dark:bg-slate-700 hover:bg-slate-700 dark:hover:bg-slate-600 text-white transition-all duration-300 transform hover:scale-110"
                           onClick={() => setIsPlaying(!isPlaying)}
                         >
                           {isPlaying ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4" />}
@@ -317,7 +368,7 @@ export default function DiscordBotDashboard() {
                         <Button
                           size="sm"
                           variant="ghost"
-                          className="text-slate-600 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200"
+                          className="text-slate-600 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 transition-all duration-300 transform hover:scale-110"
                         >
                           <SkipForward className="w-4 h-4" />
                         </Button>
@@ -326,7 +377,7 @@ export default function DiscordBotDashboard() {
                   </Card>
 
                   {/* Queue */}
-                  <Card className="backdrop-blur-xl bg-white/60 dark:bg-slate-800/60 border-slate-200/50 dark:border-slate-700/50">
+                  <Card className="backdrop-blur-xl bg-white/60 dark:bg-slate-800/60 border-slate-200/50 dark:border-slate-700/50 transition-all duration-300 hover:shadow-lg">
                     <CardHeader>
                       <CardTitle className="flex items-center gap-2 text-slate-800 dark:text-slate-200">
                         <Activity className="w-5 h-5" />
@@ -338,7 +389,7 @@ export default function DiscordBotDashboard() {
                         {queue.map((song, index) => (
                           <div
                             key={index}
-                            className="flex items-center gap-3 p-3 rounded-lg bg-slate-50/50 dark:bg-slate-700/50 hover:bg-slate-100/50 dark:hover:bg-slate-600/50 transition-colors"
+                            className="flex items-center gap-3 p-3 rounded-lg bg-slate-50/50 dark:bg-slate-700/50 hover:bg-slate-100/50 dark:hover:bg-slate-600/50 transition-all duration-300 transform hover:scale-105"
                           >
                             <div className="w-8 h-8 bg-slate-200 dark:bg-slate-600 rounded flex items-center justify-center">
                               <Music className="w-4 h-4 text-slate-600 dark:text-slate-300" />
